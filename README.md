@@ -304,6 +304,11 @@ Predictive-Maintenance-Intelligence-Platform/
 │   ├── preprocessor.pkl
 │   └── tuned_random_forest.pkl
 │
+├── app/
+│   ├── __init__.py
+│   └── main.py
+│
+│
 ├── data/
 │   ├── raw/
 │   │   └── AI4I-PMDI.csv
@@ -457,6 +462,108 @@ No failure         1.0
 
 This ensures that training and inference use the same feature transformations and target-label mappings.
 
+## REST API
+
+A basic REST API is included using **FastAPI** to demonstrate how the trained machine learning model can receive prediction requests over HTTP.
+
+The API loads the saved model, preprocessing pipeline, and label encoder when the application starts. Incoming machine data is validated using Pydantic and then passed through the existing prediction workflow.
+
+### Running the API
+
+Start the API from the project root using:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Once the server starts, the API is available locally at:
+
+```text
+http://127.0.0.1:8000
+```
+
+FastAPI automatically provides interactive Swagger documentation at:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### Prediction Endpoint
+
+Machine failure predictions are made using:
+
+```text
+POST /predict
+```
+
+The endpoint accepts machine operational and sensor information and returns the predicted diagnostic class together with the model confidence score.
+
+Example request:
+
+```json
+{
+  "Date": "2017-12-08 19:31:00",
+  "System": 0,
+  "Control": "B",
+  "Type": "L",
+  "Air_temperature": 300.0643584521385,
+  "Process_temperature": 310.03308117544367,
+  "Rotational_speed": 2861.0,
+  "Torque": 4.6,
+  "Tool_wear": 110.52423968684133
+}
+```
+
+Example response:
+
+```json
+{
+  "predicted_failure": "Power Failure",
+  "confidence": 1.0
+}
+```
+
+### Request Validation
+
+FastAPI uses **Pydantic** to validate incoming request data before it reaches the machine learning pipeline.
+
+For example, fields such as `System` must contain the expected data type. Invalid requests are rejected with a validation error instead of being passed directly to the model.
+
+### API Prediction Flow
+
+```text
+Client Request
+      |
+      v
+POST /predict
+      |
+      v
+Pydantic Input Validation
+      |
+      v
+Convert Request to DataFrame
+      |
+      v
+Feature Engineering
+      |
+      v
+Saved Preprocessing Pipeline
+      |
+      v
+Random Forest Model
+      |
+      v
+Label Decoding
+      |
+      v
+Failure Type + Confidence Score
+      |
+      v
+JSON Response
+```
+
+The REST API is included primarily as a learning and local demonstration layer. The planned AWS architecture will use AWS services for the deployed prediction workflow.
+
 ## Running the Explainability Module
 
 The trained Random Forest model can be inspected using the reusable explainability module.
@@ -500,7 +607,7 @@ Although the final Random Forest model achieves high overall accuracy, the proje
 * **Limited failure examples:** Some diagnostic classes contain too few observations for the model to reliably learn their patterns.
 * **Dataset-specific patterns:** Date-derived features may capture patterns specific to this dataset rather than meaningful physical relationships with machine failure.
 * **Model confidence:** Prediction probabilities represent the model's confidence and should not be interpreted as certainty.
-* **Offline prediction:** The current implementation performs predictions from Python code and does not yet expose the model through a production API or real-time monitoring system.
+* **Local API only:** The FastAPI prediction service currently runs locally and has not yet been deployed as a cloud-hosted production API.
 
 ### Future Improvements
 
@@ -513,12 +620,12 @@ Future development of the project can include:
 * Investigating probability calibration for more reliable confidence estimates.
 * Further validating the usefulness of date-derived features.
 * Extending model explainability for individual predictions.
-* Building a REST API for real-time prediction requests.
-* Containerizing the application using Docker.
-* Deploying the prediction service to AWS.
+* Deploying the trained model using Amazon SageMaker.
+* Integrating AWS Lambda and API Gateway for cloud-based prediction requests.
+* Adding Amazon SNS notifications for detected machine failures.
 * Adding monitoring for model performance, prediction distributions, and potential data drift.
 
-The current project represents a complete local machine learning workflow, while API development, cloud deployment, and production monitoring remain future stages of the system.
+The current project represents a complete local machine learning workflow with a basic FastAPI prediction interface, while AWS deployment and production monitoring remain future stages of the system.
 
 
 ## Technology Stack
@@ -532,17 +639,20 @@ The current implementation uses the following technologies and libraries:
 * **imbalanced-learn** – SMOTE experiments for handling class imbalance.
 * **Matplotlib** and **Seaborn** – exploratory data analysis and visualization.
 * **SHAP** – model explainability experiments.
+* **FastAPI** – REST API and request validation.
+* **Uvicorn** – local ASGI server used to run the FastAPI application.
 * **Jupyter Notebook** – exploratory analysis and model experimentation.
 * **Git and GitHub** – version control and project repository management.
 * **VS Code** – primary development environment.
 
 ### Planned Technologies
 
-The next development stages are expected to introduce:
+The next development stage will focus on the AWS deployment architecture, including:
 
-* **FastAPI** – exposing the trained model through a REST API.
-* **Docker** – containerizing the prediction service.
-* **AWS** – cloud deployment and integration of the predictive maintenance workflow.
+* **Amazon SageMaker** – hosting the trained machine learning model for inference.
+* **AWS Lambda** – serverless functions for processing prediction requests and workflow logic.
+* **Amazon API Gateway** – exposing the deployed prediction workflow through an API.
+* **Amazon SNS** – sending failure notifications or alerts.
 
 ## Workflow Summary
 
