@@ -15,5 +15,5 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# Model Artifacts
-artifacts/
+# Experimental Model Artifacts
+artifacts/tuned_random_forest.pkl
