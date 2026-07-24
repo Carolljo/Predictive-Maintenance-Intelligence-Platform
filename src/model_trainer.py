@@ -26,11 +26,20 @@ def train_model(X_train, y_train):
 
 def save_model(model, file_path):
     """
-    Save the trained model.
+    Save a trained machine learning model to disk.
 
-    Parameters:
-        model: Trained machine learning model.
-        file_path (str): Path to save the model.
+    Parameters
+    ----------
+    model
+        Trained machine learning model to save.
+
+    file_path : str
+        Path where the trained model will be saved.
+
+    Returns
+    -------
+    None
+        The model is serialized and saved to disk.
     """
 
     save_object(model, file_path)

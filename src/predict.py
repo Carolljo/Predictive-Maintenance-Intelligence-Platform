@@ -24,13 +24,14 @@ from src.utils import load_object
 
 def load_prediction_artifacts():
     """
-    Load all artifacts required for prediction.
+    Load the artifacts required for machine failure prediction.
 
-    Returns:
-        tuple: Trained model, fitted preprocessor,
-               and fitted label encoder.
+    Returns
+    -------
+    tuple
+        Trained classification model, fitted preprocessing pipeline,
+        and fitted label encoder.
     """
-
     model = load_model(BEST_MODEL_PATH)
 
     preprocessor = load_preprocessor(

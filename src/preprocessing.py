@@ -20,23 +20,23 @@ def build_preprocessor(
     categorical_features: List[str]
 ) -> ColumnTransformer:
     """
-    Build and return the preprocessing pipeline.
+    Build the preprocessing pipeline for numerical and categorical features.
 
     Parameters
     ----------
     numerical_features : List[str]
-        List of numerical feature names.
+        Names of the numerical features.
 
     categorical_features : List[str]
-        List of categorical feature names.
+        Names of the categorical features.
 
     Returns
     -------
     ColumnTransformer
-        Configured preprocessing pipeline.
+        Configured preprocessing pipeline containing numerical and
+        categorical transformations.
     """
 
-    # Numerical preprocessing pipeline
     numerical_pipeline = Pipeline(
         steps=[
             ("imputer", SimpleImputer(strategy="median")),
@@ -44,7 +44,6 @@ def build_preprocessor(
         ]
     )
 
-    # Categorical preprocessing pipeline
     categorical_pipeline = Pipeline(
         steps=[
             ("imputer", SimpleImputer(strategy="most_frequent")),
@@ -52,7 +51,6 @@ def build_preprocessor(
         ]
     )
 
-    # Combine numerical and categorical pipelines
     preprocessor = ColumnTransformer(
         transformers=[
             ("num", numerical_pipeline, numerical_features),
@@ -63,25 +61,12 @@ def build_preprocessor(
     return preprocessor
 
 
-def fit_preprocessor(
-    preprocessor: ColumnTransformer,
-    X_train: pd.DataFrame
-) -> ColumnTransformer:
-    """
-    Fit the preprocessing pipeline on the training data.
-    """
-
-    preprocessor.fit(X_train)
-
-    return preprocessor
-
-
 def transform_data(
     preprocessor: ColumnTransformer,
     X: pd.DataFrame
 ):
     """
-    Transform data using a fitted preprocessing pipeline.
+    Transform feature data using a fitted preprocessing pipeline.
 
     Parameters
     ----------
@@ -93,7 +78,8 @@ def transform_data(
 
     Returns
     -------
-    Transformed feature matrix.
+    array-like
+        Transformed feature matrix.
     """
 
     return preprocessor.transform(X)
@@ -109,14 +95,15 @@ def fit_transform_data(
     Parameters
     ----------
     preprocessor : ColumnTransformer
-        Preprocessing pipeline.
+        Preprocessing pipeline to fit.
 
     X_train : pd.DataFrame
-        Training feature data.
+        Training feature data used to fit and apply the transformations.
 
     Returns
     -------
-    Transformed training feature matrix.
+    array-like
+        Transformed training feature matrix.
     """
 
     return preprocessor.fit_transform(X_train)
@@ -127,7 +114,21 @@ def save_preprocessor(
     file_path: str
 ) -> None:
     """
-    Save the fitted preprocessing pipeline.
+    Save a fitted preprocessing pipeline to disk.
+
+    Parameters
+    ----------
+    preprocessor : ColumnTransformer
+        Fitted preprocessing pipeline to save.
+
+    file_path : str
+        Path where the preprocessing pipeline will be saved.
+
+    Returns
+    -------
+    None
+        The function saves the preprocessor to disk and does not
+        return a value.
     """
 
     save_object(preprocessor, file_path)
@@ -137,7 +138,17 @@ def load_preprocessor(
     file_path: str
 ) -> ColumnTransformer:
     """
-    Load a saved preprocessing pipeline.
+    Load a fitted preprocessing pipeline from disk.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the saved preprocessing pipeline.
+
+    Returns
+    -------
+    ColumnTransformer
+        Loaded fitted preprocessing pipeline.
     """
 
     return load_object(file_path)

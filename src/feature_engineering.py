@@ -3,42 +3,51 @@ import pandas as pd
 
 def engineer_features(df):
     """
-    Perform feature engineering on the dataset.
+    Create engineered features from machine and date-related data.
 
-    Parameters:
-        df (pd.DataFrame): Input dataset.
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataset containing the original machine features
+        and Date column.
 
-    Returns:
-        pd.DataFrame: Dataset with engineered features.
+    Returns
+    -------
+    pd.DataFrame
+        Copy of the dataset containing the engineered features,
+        with the original Date column removed.
     """
 
+    # Work on a copy to avoid modifying the original DataFrame
     df = df.copy()
-    
+
     # Convert Date column to datetime
     df["Date"] = pd.to_datetime(df["Date"])
-    
+
     # Extract date-based features
     df["Year"] = df["Date"].dt.year
     df["Month"] = df["Date"].dt.month
     df["Day"] = df["Date"].dt.day
-    
+
     # Extract the day of the week
     df["Day_of_Week"] = df["Date"].dt.dayofweek
-    
+
     # Extract the quarter of the year
     df["Quarter"] = df["Date"].dt.quarter
-    
+
     # Remove the original Date column
     df.drop(columns=["Date"], inplace=True)
-    
+
     # Calculate the temperature difference
     df["Temperature_Difference"] = (
-    df["Process temperature (K)"] - df["Air temperature (K)"])
-    
+        df["Process temperature (K)"]
+        - df["Air temperature (K)"]
+    )
+
     # Calculate the power index
     df["Power_Index"] = (
-    df["Rotational speed (rpm)"] * df["Torque (Nm)"])
-    
-    
-    
+        df["Rotational speed (rpm)"]
+        * df["Torque (Nm)"]
+    )
+
     return df

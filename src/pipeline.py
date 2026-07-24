@@ -39,17 +39,30 @@ def run_training_pipeline():
     """
     Run the complete model training pipeline.
 
-    Steps:
-        1. Load cleaned data
-        2. Engineer features
-        3. Separate features and target
-        4. Encode target labels
-        5. Split training and test data
-        6. Build and fit preprocessing pipeline
-        7. Transform training and test data
-        8. Train Random Forest model
-        9. Evaluate model
-        10. Save model and preprocessing artifacts
+    The pipeline loads the cleaned dataset, performs feature
+    engineering, splits the data, fits preprocessing only on
+    the training set, trains the Random Forest classifier,
+    evaluates it, and saves the fitted artifacts.
+
+    Steps
+    -----
+    1. Load cleaned data.
+    2. Engineer features.
+    3. Separate features and target.
+    4. Encode target labels.
+    5. Split training and test data.
+    6. Build the preprocessing pipeline.
+    7. Fit preprocessing on training data and transform both sets.
+    8. Train the Random Forest model.
+    9. Evaluate model performance.
+    10. Save the model, preprocessor, and label encoder.
+
+    Returns
+    -------
+    dict
+        Dictionary containing model evaluation results, including
+        accuracy, macro F1, weighted F1, classification report,
+        confusion matrix, and predictions.
     """
 
     print("Starting training pipeline...")
