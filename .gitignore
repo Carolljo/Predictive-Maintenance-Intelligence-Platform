@@ -1,5 +1,6 @@
 # Virtual Environment
 .venv/
+.venv-sagemaker/
 
 # Python
 __pycache__/
@@ -17,3 +18,9 @@ Thumbs.db
 
 # Experimental Model Artifacts
 artifacts/tuned_random_forest.pkl
+
+# Generated Deployment Artifacts
+model.tar.gz
+
+# Local artifact backup
+artifacts_original/
