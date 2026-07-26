@@ -600,3 +600,13 @@ For the deployment side, the next improvements would be API authentication, mode
 The current version covers the full path from raw machine data and model experimentation to reusable ML code and a tested AWS inference workflow.
 
 The cloud endpoint is not kept permanently online because of SageMaker endpoint costs, but it can be recreated from the deployment code and stored model artifacts.
+
+---
+
+## Author
+
+**Carol**
+
+GitHub: Carolljo
+
+This project was developed as part of my Data Science internship and focuses on building an end-to-end predictive maintenance workflow, from data preparation and machine learning to cloud-based inference on AWS.
