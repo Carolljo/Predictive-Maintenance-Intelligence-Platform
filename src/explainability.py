@@ -56,6 +56,12 @@ def get_feature_importance(
     pd.DataFrame
         Feature names and their importance scores,
         sorted from highest to lowest importance.
+
+    Raises
+    ------
+    ValueError
+        If the number of transformed feature names does not match
+        the number of feature importance values produced by the model.
     """
 
     # Get transformed feature names

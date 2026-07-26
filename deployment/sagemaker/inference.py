@@ -1,8 +1,9 @@
 """
-inference.py
-
 SageMaker inference entry point for the
 Predictive Maintenance Intelligence Platform.
+
+This module loads the trained model artifacts and performs the same
+feature engineering and preprocessing used during model training.
 """
 
 import json
@@ -14,7 +15,20 @@ import pandas as pd
 
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Apply the same feature engineering used during training.
+    Apply the feature engineering used during model training.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Machine observations containing the original Date and sensor
+        features expected by the model.
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy of the input data containing the engineered date,
+        temperature-difference, and power-index features, with the
+        original Date column removed.
     """
 
     df = df.copy()
@@ -44,7 +58,22 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def model_fn(model_dir):
     """
-    Load model artifacts when the SageMaker endpoint starts.
+    Load the trained artifacts when the SageMaker container starts.
+
+    Parameters
+    ----------
+    model_dir : str
+        Directory where SageMaker extracts the packaged model artifacts.
+
+    Returns
+    -------
+    dict
+        Loaded classification model, preprocessing pipeline,
+        and label encoder.
+
+    Side Effects
+    ------------
+    Reads serialized model artifacts from the SageMaker model directory.
     """
 
     model = joblib.load(
@@ -68,7 +97,25 @@ def model_fn(model_dir):
 
 def input_fn(request_body, request_content_type):
     """
-    Convert incoming JSON request into a pandas DataFrame.
+    Convert an incoming JSON inference request into a DataFrame.
+
+    Parameters
+    ----------
+    request_body : str
+        JSON request body containing one or more machine observations.
+
+    request_content_type : str
+        MIME type of the incoming SageMaker request.
+
+    Returns
+    -------
+    pd.DataFrame
+        Machine observations represented as a pandas DataFrame.
+
+    Raises
+    ------
+    ValueError
+        If the request content type is not application/json.
     """
 
     if request_content_type != "application/json":
@@ -86,7 +133,21 @@ def input_fn(request_body, request_content_type):
 
 def predict_fn(input_data, artifacts):
     """
-    Run feature engineering, preprocessing and prediction.
+    Generate machine-failure predictions for prepared input data.
+
+    Parameters
+    ----------
+    input_data : pd.DataFrame
+        Machine observations created from the incoming request.
+
+    artifacts : dict
+        Loaded model, preprocessing pipeline, and label encoder.
+
+    Returns
+    -------
+    list
+        Prediction dictionaries containing the predicted failure
+        category and confidence score for each observation.
     """
 
     model = artifacts["model"]
@@ -131,7 +192,25 @@ def predict_fn(input_data, artifacts):
 
 def output_fn(prediction, response_content_type):
     """
-    Convert prediction result into JSON response.
+    Serialize SageMaker predictions as a JSON response.
+
+    Parameters
+    ----------
+    prediction : list
+        Prediction results produced by predict_fn.
+
+    response_content_type : str
+        MIME type requested for the SageMaker response.
+
+    Returns
+    -------
+    str
+        JSON-serialized prediction response.
+
+    Raises
+    ------
+    ValueError
+        If the requested response content type is not application/json.
     """
 
     if response_content_type != "application/json":

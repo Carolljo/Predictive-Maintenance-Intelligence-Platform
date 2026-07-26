@@ -9,6 +9,21 @@ app = FastAPI()
 
 
 class MachineInput(BaseModel):
+    """
+    Define the machine sensor data accepted by the local prediction API.
+
+    Attributes:
+        Date: Timestamp associated with the machine observation.
+        System: Encoded machine system value.
+        Control: Machine control category.
+        Type: Machine or product type.
+        Air_temperature: Ambient air temperature in Kelvin.
+        Process_temperature: Machine process temperature in Kelvin.
+        Rotational_speed: Machine rotational speed in revolutions per minute.
+        Torque: Machine torque in Newton-metres.
+        Tool_wear: Accumulated tool wear in minutes.
+    """
+
     Date: str
     System: int
     Control: str
@@ -25,11 +40,36 @@ model, preprocessor, label_encoder = load_prediction_artifacts()
 
 @app.get("/")
 def home():
+    """
+    Return a simple health response for the local FastAPI application.
+
+    Returns:
+        dict: Message confirming that the Predictive Maintenance API
+        is running.
+    """
+
     return {"message": "Predictive Maintenance API is running"}
 
 
 @app.post("/predict")
 def predict(data: MachineInput):
+    """
+    Predict the diagnostic condition of a machine observation.
+
+    The API input uses simplified field names. They are converted to the
+    feature names expected by the trained machine learning pipeline before
+    inference is performed.
+
+    Args:
+        data: Validated machine sensor and operational data supplied in
+        the request body.
+
+    Returns:
+        dict: Predicted failure category and the model confidence score.
+
+    Side Effects:
+        Uses model artifacts loaded when the FastAPI application starts.
+    """
 
     input_df = pd.DataFrame([{
         "Date": data.Date,

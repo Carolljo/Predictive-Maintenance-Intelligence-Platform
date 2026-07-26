@@ -1,109 +1,16 @@
 # Predictive Maintenance Intelligence Platform
 
-## Project Overview
+A machine learning project for predicting machine failure types from operational and sensor data.
 
-This project is a machine learning based predictive maintenance system built to identify different types of machine failures from operational and sensor data.
+I started this project as a notebook-based ML workflow and gradually converted it into a reusable prediction system. The final version includes a Random Forest model, reusable preprocessing and inference code, a local FastAPI interface, and an AWS deployment using SageMaker, Lambda, API Gateway, SNS, S3, CloudWatch, and IAM.
 
-The project uses the AI4I-PMDI dataset, which contains machine information such as air temperature, process temperature, rotational speed, torque, tool wear, machine type, and diagnostic labels. The dataset also contains missing and irregular measurements, which made data cleaning and preprocessing an important part of the project.
+The main goal was not just to train a model with high accuracy, but to understand the full workflow from messy data to a working cloud prediction API.
 
-The work started with understanding and cleaning the data, followed by exploratory data analysis, feature engineering, preprocessing, model comparison, hyperparameter tuning, class imbalance experiments, and model explainability. After the experimentation stage, the final workflow was converted into reusable Python modules for training and prediction.
+---
 
-The current model is a Random Forest classifier. The project also saves the trained model, preprocessing pipeline, and label encoder so that the same transformations used during training can be reused when making predictions on new machine data.
+## What the Project Does
 
-## Problem Statement
-
-Unexpected machine failures can lead to production downtime, maintenance costs, and loss of productivity. Sensor and operational data can be used to identify patterns associated with different types of machine failures before maintenance decisions are made.
-
-The goal of this project is to build a multiclass machine learning system that uses machine and sensor information to classify the machine's diagnostic condition. The project also focuses on building a reproducible workflow so that the same preprocessing and feature engineering used during model training can be applied to new machine data.
-
-## Project Objectives
-
-- Understand and clean imperfect machine sensor data.
-- Explore relationships between operational conditions and machine failures.
-- Create useful features from the available sensor and date information.
-- Build a reusable preprocessing pipeline for numerical and categorical features.
-- Compare machine learning models and evaluate their performance beyond accuracy alone.
-- Investigate hyperparameter tuning and class imbalance techniques such as SMOTE.
-- Explain the final model using feature importance and SHAP analysis.
-- Convert the notebook experiments into reusable Python modules.
-- Save the trained model and preprocessing artifacts for inference on new machine data.
-- Extend the system with a REST API and AWS deployment.
-
-## Current System Architecture
-
-The current implementation separates experimentation, model training, and inference. Data preparation and model experiments are documented in notebooks, while the reusable training and prediction logic is implemented inside the `src` package.
-
-```text
-Raw AI4I-PMDI Dataset
-        |
-        v
-Data Understanding & Cleaning
-        |
-        v
-cleaned_data.csv
-        |
-        v
-Feature Engineering
-        |
-        +--> Date-based features
-        +--> Temperature Difference
-        +--> Power Index
-        |
-        v
-Train / Test Split
-        |
-        v
-Preprocessing
-        |
-        +--> Numerical: Median Imputation + Standard Scaling
-        |
-        +--> Categorical: Most-Frequent Imputation + One-Hot Encoding
-        |
-        v
-Random Forest Classifier
-        |
-        v
-Model Evaluation
-        |
-        +--> Accuracy
-        +--> Macro F1
-        +--> Weighted F1
-        +--> Classification Report
-        +--> Confusion Matrix
-        |
-        v
-Saved Artifacts
-        |
-        +--> best_model.pkl
-        +--> preprocessor.pkl
-        +--> label_encoder.pkl
-        |
-        v
-Prediction Pipeline
-        |
-        v
-Failure Type + Confidence Score
-```
-
-## Dataset
-
-The project uses the **AI4I-PMDI** dataset, an enhanced version of the AI4I predictive maintenance dataset. It contains 10,000 machine observations with operational, sensor, machine, and diagnostic information.
-
-The main variables used in the project include:
-
-- **Air temperature (K)** – ambient temperature around the machine.
-- **Process temperature (K)** – temperature associated with the machine process.
-- **Rotational speed (rpm)** – rotational speed of the machine.
-- **Torque (Nm)** – torque generated during operation.
-- **Tool wear (min)** – accumulated tool usage/wear.
-- **Type** – machine/product quality category.
-- **System** and **Control** – operational information included in the dataset.
-- **Date** – timestamp associated with the observation.
-- **Diagnostic** – target variable representing the machine condition or failure type.
-
-### Target Classes
-
-`Diagnostic` is a multiclass target containing six categories:
+The system takes machine information such as temperature, rotational speed, torque, tool wear, machine type, and timestamp data and predicts one of six diagnostic conditions:
 
 - No failure
 - Heat Dissipation Failure
@@ -112,7 +19,61 @@ The main variables used in the project include:
 - Tool Wear Failure
 - Random Failures
 
-The dataset is highly imbalanced. After cleaning, the class distribution was:
+For the cloud deployment, a client sends machine data to an API Gateway endpoint. Lambda validates the request and sends it to a SageMaker real-time endpoint for prediction.
+
+If the model predicts a failure, Lambda publishes an SNS notification. If the prediction is `No failure`, no alert is sent.
+
+---
+
+## System Architecture
+
+![Predictive Maintenance AWS Architecture](docs/architecture.png)
+
+The deployed request flow is:
+
+```text
+Client
+  ↓
+API Gateway
+  ↓
+Lambda
+  ↓
+SageMaker Endpoint
+  ↓
+Random Forest Prediction
+  ↓
+Lambda
+  ├── Failure → SNS → Email Alert
+  └── No failure → No Alert
+  ↓
+JSON Response
+```
+
+S3 stores the packaged model artifacts used when the SageMaker model is deployed. CloudWatch records Lambda executions, while IAM controls communication between the AWS services.
+
+The model itself was trained locally. SageMaker is used here for managed real-time inference rather than model training.
+
+---
+
+## Dataset
+
+The project uses the AI4I-PMDI predictive-maintenance dataset with **10,000 machine observations**.
+
+The main inputs are:
+
+- Air temperature
+- Process temperature
+- Rotational speed
+- Torque
+- Tool wear
+- Machine type
+- System
+- Control
+- Date
+
+The target is `Diagnostic`.
+
+### Class Distribution
 
 | Diagnostic Class | Samples |
 |---|---:|
@@ -123,199 +84,389 @@ The dataset is highly imbalanced. After cleaning, the class distribution was:
 | Tool Wear Failure | 42 |
 | Random Failures | 19 |
 
-This imbalance is important when evaluating the model. Overall accuracy can appear very high because most observations belong to the `No failure` class, so macro F1, per-class recall, the classification report, and the confusion matrix were also considered during model evaluation.
+One of the biggest challenges in this project is the class imbalance. More than 96% of the observations belong to `No failure`, while some failure classes contain fewer than 50 examples.
 
-### Data Quality
+Because of that, I did not rely only on accuracy when evaluating the model.
 
-The original dataset contains substantial missing values and irregular measurements across several sensor variables. Instead of modifying the original CSV, the raw dataset was preserved in `data/raw/`, and the cleaned dataset was saved separately in `data/processed/`.
-
-This keeps the original data available for reference while allowing the modelling workflow to work from a consistent cleaned dataset.
+---
 
 ## Data Preparation
 
-The raw dataset was first inspected for data types, missing values, duplicate records, unique values, and target distribution. Cleaning was performed separately from the original dataset so that the raw data remained unchanged.
+The original data contained a large amount of missing sensor information, so I kept the raw and processed datasets separate.
 
-The cleaned dataset is stored as `data/processed/cleaned_data.csv` and is used as the starting point for the reusable model training pipeline.
+```text
+data/raw/AI4I-PMDI.csv
+data/processed/cleaned_data.csv
+```
 
-During preprocessing:
+During data understanding and cleaning I checked:
 
-- Numerical features are imputed using the **median**.
-- Numerical features are scaled using **StandardScaler**.
-- Categorical features are imputed using the **most frequent value**.
-- Categorical features are encoded using **OneHotEncoder** with unknown-category handling.
-- The preprocessing pipeline is fitted only on the training data and then reused to transform the test data.
+- missing values
+- data types
+- duplicates
+- unusual sensor values
+- feature distributions
+- outliers
+- target imbalance
 
-Fitting preprocessing only on the training set helps prevent information from the test set from leaking into model training.
+The raw dataset is kept unchanged so the cleaning process remains reproducible.
+
+---
 
 ## Feature Engineering
 
-Additional features were created from the original machine and timestamp information.
+I added two machine-related features:
 
 ### Temperature Difference
 
-`Temperature_Difference` represents the difference between process temperature and air temperature:
+```text
+Process temperature - Air temperature
+```
 
-`Process temperature (K) - Air temperature (K)`
-
-This provides a direct measure of the temperature gap between the machine process and its surrounding environment.
+This represents the temperature difference between the machine process and the surrounding environment.
 
 ### Power Index
 
-`Power_Index` is calculated from rotational speed and torque:
+```text
+Rotational speed × Torque
+```
 
-`Rotational speed (rpm) × Torque (Nm)`
+This is a simple engineered measure of machine operating load.
 
-It is used as an engineered indicator of the machine's operating load. In the final Random Forest feature-importance analysis, Power Index was the highest-ranked feature.
+`Power_Index` later became the most important feature in the Random Forest feature-importance analysis.
 
-### Date Features
+The `Date` column is also converted into:
 
-The original `Date` column is converted into:
+```text
+Year
+Month
+Day
+Day_of_Week
+Quarter
+```
 
-- Year
-- Month
-- Day
-- Day of Week
-- Quarter
+The original timestamp is removed after these values are generated.
 
-The original timestamp is removed after these features are generated.
+This is also why production prediction requests still require `Date`: the inference code needs it to recreate the same features that were used during training.
 
-These date-derived variables are retained in the current model, although their real-world predictive value requires further validation. They may capture patterns specific to the dataset rather than physical machine behaviour, so they should not automatically be interpreted as causal indicators of machine failure.
+---
 
-## Model Development and Experiments
+## Preprocessing
 
-Model development was carried out in stages rather than selecting a single algorithm from the beginning.
+I built the preprocessing stage using a scikit-learn `ColumnTransformer`.
 
-### Baseline Model Comparison
+Numerical features use:
 
-Multiple classification models were explored during the modelling stage to establish baseline performance. The comparison considered more than overall accuracy because the target classes are highly imbalanced.
+```text
+Median Imputation
+        ↓
+StandardScaler
+```
 
-Random Forest was selected as the main baseline model and was later used as the final model in the reusable training pipeline.
+Categorical features use:
 
-### Hyperparameter Tuning
+```text
+Most-Frequent Imputation
+        ↓
+OneHotEncoder
+```
 
-Hyperparameter tuning was performed as a separate experiment to determine whether adjusting the Random Forest configuration could provide a meaningful improvement over the baseline model.
+The preprocessor is fitted only on the training data and then saved.
 
-The tuned model did not provide enough improvement to justify replacing the simpler baseline Random Forest. For this reason, tuning was kept as an experiment rather than automatically treating the tuned model as the production model.
+The same fitted preprocessor is reused during inference instead of rebuilding preprocessing separately.
 
-### Class Imbalance and SMOTE
+---
 
-Because failure observations are much less common than the `No failure` class, SMOTE was also investigated as an approach to class imbalance.
+## Model Development
 
-The purpose of this experiment was to determine whether synthetic oversampling could improve recognition of minority failure classes. The SMOTE experiment did not produce a sufficiently reliable overall improvement to replace the selected baseline model.
+I compared several classification algorithms:
 
-This was treated as a model-selection experiment rather than assuming that oversampling would automatically improve the final system.
+- Logistic Regression
+- Decision Tree
+- Random Forest
+- K-Nearest Neighbors
+- Support Vector Machine
+- Gradient Boosting
+- XGBoost
 
-### Final Model
+Random Forest gave the best balance for the final workflow and was selected as the production model.
 
-The final reusable training pipeline uses a **Random Forest classifier** with a fixed `random_state=42`.
+I also experimented with Random Forest hyperparameter tuning and SMOTE.
 
-The fitted model is stored as:
+Neither experiment gave enough improvement to justify replacing the baseline Random Forest, so I kept them as experiments instead of automatically using the more complicated approach.
 
-`artifacts/best_model.pkl`
+---
 
-The preprocessing pipeline and target label encoder are also saved separately so that prediction uses the same transformations and label mapping established during training.
+## Model Performance
 
-## Model Evaluation
-
-The final Random Forest model was evaluated on a stratified 20% test split containing 2,000 observations.
-
-The production training pipeline produced the following results:
+The final model was evaluated on a stratified 20% test split.
 
 | Metric | Score |
 |---|---:|
-| Accuracy | 0.9925 |
-| Macro F1 | 0.6572 |
-| Weighted F1 | 0.9897 |
+| Accuracy | **0.9925** |
+| Macro F1 | **0.6572** |
+| Weighted F1 | **0.9897** |
 
-The high overall accuracy and weighted F1 are strongly influenced by the large number of `No failure` observations in the dataset. Macro F1 is therefore an important metric for this project because it gives equal importance to each diagnostic class regardless of its frequency.
+The accuracy looks excellent at first, but it needs context.
 
-### Per-Class Performance
+The model performs extremely well on the dominant `No failure` class and several failure classes, but the rarest classes remain difficult to detect. Two minority classes had zero recall on the test split.
 
-The final classification report showed strong performance for the majority class and several failure categories. However, the two rarest classes in the test set were not successfully detected.
+So I would **not** describe this model as "99.25% reliable at detecting machine failures."
 
-| Encoded Class | Test Samples | Recall | F1 Score |
-|---|---:|---:|---:|
-| 0 | 21 | 1.00 | 1.00 |
-| 1 | 1,930 | 1.00 | 1.00 |
-| 2 | 20 | 0.90 | 0.95 |
-| 3 | 17 | 1.00 | 1.00 |
-| 4 | 4 | 0.00 | 0.00 |
-| 5 | 8 | 0.00 | 0.00 |
+The more important weakness is visible in the Macro F1 score of **0.6572**.
 
-The confusion matrix showed that all samples belonging to classes 4 and 5 were classified as the dominant class or another class.
+That class-imbalance problem is one of the main limitations of the current model.
 
-### Interpretation
+---
 
-The model performs well on the majority class and several failure categories, but the 99.25% accuracy should not be interpreted as equal performance across all six diagnostic classes.
+## Explainability
 
-The main limitation is the severe class imbalance. Some failure categories contain very few observations, which gives the model limited examples from which to learn their patterns.
+I used Random Forest feature importance and experimented with SHAP to better understand what the model was learning.
 
-For this reason, the project reports macro F1 and per-class performance alongside accuracy rather than using accuracy as the only measure of model quality.
-
-Hyperparameter tuning and SMOTE were investigated during experimentation, but neither provided sufficient evidence to replace the selected baseline Random Forest.
-
-Further improvement would require stronger validation of minority-class performance, potentially using additional failure observations, alternative imbalance-handling methods, cost-sensitive learning, or different modelling approaches.
-
-## Model Explainability
-
-Model explainability was included to understand which features had the strongest influence on the Random Forest model rather than treating the classifier as a complete black box.
-
-Two forms of explainability were explored during the project.
-
-### Random Forest Feature Importance
-
-The reusable `src/explainability.py` module extracts feature names from the fitted preprocessing pipeline and matches them with the Random Forest's built-in feature importance scores.
-
-The highest-ranked features from the final model were:
+The most important production-model features included:
 
 | Rank | Feature | Importance |
 |---|---|---:|
 | 1 | Power Index | 0.2175 |
-| 2 | Torque (Nm) | 0.1530 |
-| 3 | Rotational speed (rpm) | 0.1470 |
-| 4 | Tool wear (min) | 0.1278 |
+| 2 | Torque | 0.1530 |
+| 3 | Rotational speed | 0.1470 |
+| 4 | Tool wear | 0.1278 |
 | 5 | Temperature Difference | 0.0854 |
 | 6 | System | 0.0482 |
 
-The results suggest that operating load, torque, rotational speed, tool wear, and temperature behaviour are important signals used by the model.
+These values show which features the Random Forest used most heavily. They should not be interpreted as proof that those features cause machine failures.
 
-Feature importance describes how useful a feature was to the Random Forest when making splits. It should not be interpreted as proof that a feature directly causes machine failure.
+The SHAP experiments are available in:
 
-### SHAP Analysis
+```text
+notebooks/09_Model_Explainability.ipynb
+```
 
-SHAP was explored separately in the model explainability notebook to provide additional insight into how features contribute to model predictions.
+---
 
-This complements the Random Forest feature-importance analysis by examining feature contributions rather than relying only on the model's built-in importance scores.
+## From Notebooks to Reusable Code
 
-The explainability work is documented in:
+The first part of the project was developed through notebooks for data exploration and experimentation.
 
-`notebooks/09_Model_Explainability.ipynb`
+After the modelling stage, I moved the main workflow into reusable modules under `src/`.
+
+```text
+src/
+├── config.py
+├── data_loader.py
+├── explainability.py
+├── feature_engineering.py
+├── model_evaluator.py
+├── model_trainer.py
+├── pipeline.py
+├── predict.py
+├── preprocessing.py
+└── utils.py
+```
+
+The training pipeline can be run with:
+
+```bash
+python -m src.pipeline
+```
+
+It handles:
+
+```text
+Data Loading
+    ↓
+Feature Engineering
+    ↓
+Train/Test Split
+    ↓
+Preprocessing
+    ↓
+Random Forest Training
+    ↓
+Evaluation
+    ↓
+Artifact Saving
+```
+
+The saved production artifacts are:
+
+```text
+artifacts/
+├── best_model.pkl
+├── preprocessor.pkl
+└── label_encoder.pkl
+```
+
+---
+
+## Local FastAPI Interface
+
+Before connecting the project to AWS, I created a small FastAPI interface for local prediction testing.
+
+Run it from the project root with:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+The prediction route is:
+
+```text
+POST /predict
+```
+
+FastAPI/Pydantic validates the request and converts it into the structure expected by the prediction pipeline.
+
+This local API is mainly useful for development and testing. The deployed cloud API uses API Gateway and Lambda instead.
+
+---
+
+## AWS Deployment
+
+The cloud version uses:
+
+- **Amazon S3** for packaged model storage
+- **Amazon SageMaker** for real-time model inference
+- **AWS Lambda** for validation and orchestration
+- **Amazon API Gateway** for the HTTP prediction endpoint
+- **Amazon SNS** for failure email alerts
+- **Amazon CloudWatch** for Lambda logs
+- **AWS IAM** for service permissions
+
+### SageMaker
+
+The model artifacts are packaged into `model.tar.gz` and uploaded to S3.
+
+The deployment code is in:
+
+```text
+deployment/sagemaker/
+├── deploy.py
+└── inference.py
+```
+
+`inference.py` recreates the same feature-engineering and preprocessing workflow used during training before making a prediction.
+
+The endpoint can be deployed with:
+
+```bash
+python deployment/sagemaker/deploy.py
+```
+
+I used a separate SageMaker environment because the deployed model artifacts were created with scikit-learn 1.4.2 and needed a compatible deployment environment.
+
+The tested deployment environment is documented in:
+
+```text
+requirements-sagemaker.txt
+```
+
+### Lambda and API Gateway
+
+Lambda receives the API Gateway request, validates the required fields and invokes the SageMaker endpoint.
+
+The production route is:
+
+```text
+POST /predict
+```
+
+A successful response looks like:
+
+```json
+{
+  "predicted_failure": "Power Failure",
+  "confidence": 1.0,
+  "alert_sent": true
+}
+```
+
+If SageMaker returns a failure class, Lambda sends the machine information to SNS.
+
+For a healthy prediction:
+
+```json
+{
+  "predicted_failure": "No failure",
+  "confidence": 1.0,
+  "alert_sent": false
+}
+```
+
+No SNS alert is sent.
+
+---
+
+## End-to-End Test
+
+I tested both branches of the deployed system using actual records from the processed dataset.
+
+### Failure Test
+
+A known `Power Failure` record produced:
+
+```text
+Prediction: Power Failure
+Confidence: 1.0
+SNS alert: Sent
+Email: Received
+```
+
+### No-Failure Test
+
+A known healthy record produced:
+
+```text
+Prediction: No failure
+Confidence: 1.0
+SNS alert: Not sent
+```
+
+This verified the complete path:
+
+```text
+API Gateway
+→ Lambda
+→ SageMaker
+→ Prediction
+→ Conditional SNS Alert
+→ API Response
+```
+
+CloudWatch logs were also checked to confirm successful Lambda executions.
+
+---
 
 ## Project Structure
-
-The project separates exploratory notebook work from reusable machine learning code. Notebooks document the experimentation process, while the `src` package contains the modular training, evaluation, explainability, and prediction workflow.
 
 ```text
 Predictive-Maintenance-Intelligence-Platform/
 │
+├── app/
+│   └── main.py
+│
 ├── artifacts/
 │   ├── best_model.pkl
 │   ├── label_encoder.pkl
-│   ├── preprocessor.pkl
-│   └── tuned_random_forest.pkl
-│
-├── app/
-│   ├── __init__.py
-│   └── main.py
-│
+│   └── preprocessor.pkl
 │
 ├── data/
 │   ├── raw/
 │   │   └── AI4I-PMDI.csv
-│   │
 │   └── processed/
 │       ├── cleaned_data.csv
 │       └── engineered_data.csv
+│
+├── deployment/
+│   └── sagemaker/
+│       ├── deploy.py
+│       └── inference.py
+│
+├── docs/
+│   └── architecture.png
+│
+├── lambda_app/
+│   └── lambda_function.py
 │
 ├── notebooks/
 │   ├── 01_Data_Understanding.ipynb
@@ -329,342 +480,123 @@ Predictive-Maintenance-Intelligence-Platform/
 │   └── 09_Model_Explainability.ipynb
 │
 ├── src/
-│   ├── __init__.py
 │   ├── config.py
 │   ├── data_loader.py
-│   ├── feature_engineering.py
-│   ├── preprocessing.py
-│   ├── model_trainer.py
-│   ├── model_evaluator.py
 │   ├── explainability.py
+│   ├── feature_engineering.py
+│   ├── model_evaluator.py
+│   ├── model_trainer.py
 │   ├── pipeline.py
 │   ├── predict.py
+│   ├── preprocessing.py
 │   └── utils.py
 │
 ├── .gitignore
 ├── README.md
-└── requirements.txt
+├── requirements.txt
+└── requirements-sagemaker.txt
 ```
 
-## Installation and Setup
+---
 
-### 1. Clone the Repository
+## Setup
+
+Clone the repository:
 
 ```bash
 git clone https://github.com/Carolljo/Predictive-Maintenance-Intelligence-Platform.git
 cd Predictive-Maintenance-Intelligence-Platform
 ```
 
-### 2. Create a Virtual Environment
+Create the normal development environment:
 
 ```bash
 python -m venv .venv
 ```
 
-Activate the environment on Windows:
+Activate it on Windows:
 
 ```bash
 .venv\Scripts\activate
 ```
 
-### 3. Install Dependencies
+Install the local project dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Dataset
-
-The project uses the AI4I-PMDI dataset. The raw dataset is stored in:
-
-```text
-data/raw/AI4I-PMDI.csv
-```
-
-The cleaned dataset used by the training pipeline is stored in:
-
-```text
-data/processed/cleaned_data.csv
-```
-
-## Running the Training Pipeline
-
-The complete model training workflow can be executed from the project root using:
+Run the training pipeline:
 
 ```bash
 python -m src.pipeline
 ```
 
-The training pipeline automatically:
-
-1. Loads the cleaned dataset.
-2. Applies feature engineering.
-3. Creates a stratified training and test split.
-4. Fits the preprocessing pipeline on the training data.
-5. Trains the Random Forest classifier.
-6. Evaluates the model using accuracy, macro F1, weighted F1, a classification report, and a confusion matrix.
-7. Saves the trained model, preprocessing pipeline, and label encoder.
-
-After successful training, the following artifacts are generated:
-
-```text
-artifacts/
-├── best_model.pkl
-├── preprocessor.pkl
-└── label_encoder.pkl
-```
-
-These artifacts allow the same trained model, preprocessing transformations, and target-label mapping to be reused during inference without retraining the model.
-
-## Running the Prediction Module
-
-After training the model and generating the required artifacts, the prediction module can be tested from the project root using:
-
-```bash
-python -m src.predict
-```
-
-If the trained artifacts are available, the module loads:
-
-```text
-artifacts/
-├── best_model.pkl
-├── preprocessor.pkl
-└── label_encoder.pkl
-```
-
-A successful artifact-loading check displays:
-
-```text
-Prediction artifacts loaded successfully.
-```
-
-The prediction workflow reuses the saved preprocessing pipeline and trained model, ensuring that new machine data undergoes the same transformations used during model training.
-
-## Making Predictions
-
-The trained pipeline can perform predictions on new machine sensor data without retraining the model.
-
-During inference, the system:
-
-1. Applies the same feature engineering used during training.
-2. Transforms the input using the saved preprocessing pipeline.
-3. Generates a failure prediction using the trained Random Forest model.
-4. Converts the encoded prediction back to the original diagnostic label.
-5. Returns the predicted failure type along with the model confidence score.
-
-Example prediction output:
-
-```text
-Predicted_Failure  Confidence
-No failure         1.0
-```
-
-This ensures that training and inference use the same feature transformations and target-label mappings.
-
-## REST API
-
-A basic REST API is included using **FastAPI** to demonstrate how the trained machine learning model can receive prediction requests over HTTP.
-
-The API loads the saved model, preprocessing pipeline, and label encoder when the application starts. Incoming machine data is validated using Pydantic and then passed through the existing prediction workflow.
-
-### Running the API
-
-Start the API from the project root using:
-
-```bash
-uvicorn app.main:app --reload
-```
-
-Once the server starts, the API is available locally at:
-
-```text
-http://127.0.0.1:8000
-```
-
-FastAPI automatically provides interactive Swagger documentation at:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-### Prediction Endpoint
-
-Machine failure predictions are made using:
-
-```text
-POST /predict
-```
-
-The endpoint accepts machine operational and sensor information and returns the predicted diagnostic class together with the model confidence score.
-
-Example request:
-
-```json
-{
-  "Date": "2017-12-08 19:31:00",
-  "System": 0,
-  "Control": "B",
-  "Type": "L",
-  "Air_temperature": 300.0643584521385,
-  "Process_temperature": 310.03308117544367,
-  "Rotational_speed": 2861.0,
-  "Torque": 4.6,
-  "Tool_wear": 110.52423968684133
-}
-```
-
-Example response:
-
-```json
-{
-  "predicted_failure": "Power Failure",
-  "confidence": 1.0
-}
-```
-
-### Request Validation
-
-FastAPI uses **Pydantic** to validate incoming request data before it reaches the machine learning pipeline.
-
-For example, fields such as `System` must contain the expected data type. Invalid requests are rejected with a validation error instead of being passed directly to the model.
-
-### API Prediction Flow
-
-```text
-Client Request
-      |
-      v
-POST /predict
-      |
-      v
-Pydantic Input Validation
-      |
-      v
-Convert Request to DataFrame
-      |
-      v
-Feature Engineering
-      |
-      v
-Saved Preprocessing Pipeline
-      |
-      v
-Random Forest Model
-      |
-      v
-Label Decoding
-      |
-      v
-Failure Type + Confidence Score
-      |
-      v
-JSON Response
-```
-
-The REST API is included primarily as a learning and local demonstration layer. The planned AWS architecture will use AWS services for the deployed prediction workflow.
-
-## Running the Explainability Module
-
-The trained Random Forest model can be inspected using the reusable explainability module.
-
-Run the module from the project root:
+Run model explainability:
 
 ```bash
 python -m src.explainability
 ```
 
-Example output:
+For the tested SageMaker deployment environment, the project uses **Python 3.11.4** with the versions recorded in:
 
 ```text
-Top 10 Important Features
--------------------------
-                    Feature  Importance
-           num__Power_Index    0.217537
-           num__Torque (Nm)    0.153011
-num__Rotational speed (rpm)    0.147015
-       num__Tool wear (min)    0.127829
-num__Temperature_Difference    0.085373
-                num__System    0.048186
-                  num__Year    0.042969
-                   num__Day    0.031415
-   num__Air temperature (K)    0.025920
-                 num__Month    0.021085
+requirements-sagemaker.txt
 ```
 
-The module uses the fitted preprocessing pipeline to recover the transformed feature names and matches them with the Random Forest feature-importance scores.
+---
 
-These importance values indicate which features the trained model relied on most strongly when making predictions. They should not be interpreted as evidence that those features directly cause machine failures.
+## Limitations
 
-## Limitations and Future Improvements
+The biggest limitation is class imbalance.
 
-Although the final Random Forest model achieves high overall accuracy, the project has several important limitations.
+The model is very strong at recognising normal operation but is not equally reliable across all failure categories. More minority-class data would be needed before treating this as a serious industrial failure-detection system.
 
-### Current Limitations
+There are a few other limitations I would investigate before production use:
 
-* **Severe class imbalance:** Most observations belong to the `No failure` class, while some failure categories contain very few samples.
-* **Minority-class detection:** The two rarest classes in the test set achieved zero recall, showing that high overall accuracy does not represent equally strong performance across all failure types.
-* **Limited failure examples:** Some diagnostic classes contain too few observations for the model to reliably learn their patterns.
-* **Dataset-specific patterns:** Date-derived features may capture patterns specific to this dataset rather than meaningful physical relationships with machine failure.
-* **Model confidence:** Prediction probabilities represent the model's confidence and should not be interpreted as certainty.
-* **Local API only:** The FastAPI prediction service currently runs locally and has not yet been deployed as a cloud-hosted production API.
+- The date-derived features may contain dataset-specific patterns rather than meaningful physical relationships.
+- Random Forest probabilities are not automatically calibrated, so a confidence score of `1.0` should not be treated as absolute certainty.
+- The API currently demonstrates the prediction architecture but does not include production authentication or rate limiting.
+- Model and prediction drift are not monitored.
+- AWS infrastructure is created manually rather than through infrastructure-as-code.
 
-### Future Improvements
+The SageMaker endpoint is also intentionally deleted when I am not testing the project because a real-time endpoint continues to generate charges while provisioned.
 
-Future development of the project can include:
+---
 
-* Collecting or incorporating additional observations for rare failure categories.
-* Exploring class-weighted and cost-sensitive learning approaches.
-* Comparing additional models designed for imbalanced classification.
-* Performing more robust validation using techniques such as stratified cross-validation.
-* Investigating probability calibration for more reliable confidence estimates.
-* Further validating the usefulness of date-derived features.
-* Extending model explainability for individual predictions.
-* Deploying the trained model using Amazon SageMaker.
-* Integrating AWS Lambda and API Gateway for cloud-based prediction requests.
-* Adding Amazon SNS notifications for detected machine failures.
-* Adding monitoring for model performance, prediction distributions, and potential data drift.
+## What I Would Improve Next
 
-The current project represents a complete local machine learning workflow with a basic FastAPI prediction interface, while AWS deployment and production monitoring remain future stages of the system.
+The next modelling priority would be improving minority-class detection rather than chasing a slightly higher overall accuracy.
 
+I would explore:
 
-## Technology Stack
+- class-weighted and cost-sensitive models
+- stratified cross-validation
+- additional minority-class data
+- probability calibration
+- stronger validation of the date features
+- per-prediction SHAP explanations
 
-The current implementation uses the following technologies and libraries:
+For the deployment side, the next improvements would be API authentication, model versioning, drift monitoring, CI/CD, infrastructure-as-code, and externalising AWS configuration such as endpoint names and SNS topic information.
 
-* **Python** – core programming language used throughout the project.
-* **pandas** – data loading, cleaning, manipulation, and feature engineering.
-* **NumPy** – numerical operations.
-* **scikit-learn** – preprocessing pipelines, model training, evaluation, and Random Forest classification.
-* **imbalanced-learn** – SMOTE experiments for handling class imbalance.
-* **Matplotlib** and **Seaborn** – exploratory data analysis and visualization.
-* **SHAP** – model explainability experiments.
-* **FastAPI** – REST API and request validation.
-* **Uvicorn** – local ASGI server used to run the FastAPI application.
-* **Jupyter Notebook** – exploratory analysis and model experimentation.
-* **Git and GitHub** – version control and project repository management.
-* **VS Code** – primary development environment.
+---
 
-### Planned Technologies
+## Tech Stack
 
-The next development stage will focus on the AWS deployment architecture, including:
+**Machine Learning:** Python, pandas, NumPy, scikit-learn, imbalanced-learn, XGBoost, SHAP
 
-* **Amazon SageMaker** – hosting the trained machine learning model for inference.
-* **AWS Lambda** – serverless functions for processing prediction requests and workflow logic.
-* **Amazon API Gateway** – exposing the deployed prediction workflow through an API.
-* **Amazon SNS** – sending failure notifications or alerts.
+**API:** FastAPI, Pydantic, Uvicorn
 
-## Workflow Summary
+**AWS:** S3, SageMaker, Lambda, API Gateway, SNS, CloudWatch, IAM, Boto3
 
-The project follows a notebook-to-production-code workflow.
+**Development:** Jupyter Notebook, VS Code, Git, GitHub, AWS CLI
 
-1. **Data understanding and cleaning** are performed in the initial notebooks.
-2. **Exploratory data analysis** is used to investigate sensor behaviour, distributions, and failure patterns.
-3. **Feature engineering** creates additional machine and date-based variables.
-4. **Model experiments** compare baseline models, hyperparameter tuning, and SMOTE.
-5. **Model explainability** investigates the features influencing the selected model.
-6. The validated workflow is converted into reusable modules inside the `src` package.
-7. Running `python -m src.pipeline` executes the complete training workflow and saves the required artifacts.
-8. The saved artifacts are reused by `src.predict` for inference without retraining the model.
+---
 
-This structure keeps experimentation separate from reusable application code while maintaining consistency between model training and prediction.
+## Project Status
+
+**v1.0 is complete.**
+
+The current version covers the full path from raw machine data and model experimentation to reusable ML code and a tested AWS inference workflow.
+
+The cloud endpoint is not kept permanently online because of SageMaker endpoint costs, but it can be recreated from the deployment code and stored model artifacts.

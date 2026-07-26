@@ -1,4 +1,14 @@
+"""
+AWS Lambda orchestration for the
+Predictive Maintenance Intelligence Platform.
+
+The Lambda function validates incoming machine data, invokes the
+SageMaker real-time endpoint, sends an SNS notification when a failure
+is predicted, and returns the prediction to the API client.
+"""
+
 import json
+
 import boto3
 
 
@@ -54,8 +64,28 @@ sagemaker_runtime = boto3.client(
 
 def invoke_sagemaker(machine_data):
     """
-    Send machine data to the SageMaker endpoint
-    and return the model prediction.
+    Send machine data to the SageMaker real-time endpoint.
+
+    Parameters
+    ----------
+    machine_data : dict
+        Validated machine observation containing the fields expected
+        by the SageMaker inference pipeline.
+
+    Returns
+    -------
+    dict
+        First prediction returned by SageMaker, containing the predicted
+        failure category and confidence score.
+
+    Raises
+    ------
+    ValueError
+        If SageMaker returns an empty prediction list.
+
+    Side Effects
+    ------------
+    Makes a network request to the configured SageMaker endpoint.
     """
 
     response = sagemaker_runtime.invoke_endpoint(
@@ -91,7 +121,28 @@ def send_failure_alert(
     machine_data
 ):
     """
-    Publish a machine failure alert to the SNS topic.
+    Publish a predicted machine-failure alert to Amazon SNS.
+
+    Parameters
+    ----------
+    failure_type : str
+        Failure category predicted by the machine learning model.
+
+    confidence : float
+        Model confidence associated with the prediction.
+
+    machine_data : dict
+        Machine observation included in the failure notification.
+
+    Returns
+    -------
+    dict
+        Response returned by the Amazon SNS publish operation.
+
+    Side Effects
+    ------------
+    Publishes a message to the configured SNS topic. Confirmed
+    subscribers may receive an email notification.
     """
 
     message = (
@@ -130,16 +181,34 @@ def send_failure_alert(
 
 def lambda_handler(event, context):
     """
-    Entry point for the Predictive Maintenance API.
+    Process a prediction request received through AWS Lambda.
 
-    Flow:
-    1. Receive API request.
-    2. Parse JSON body.
-    3. Validate required machine fields.
-    4. Invoke SageMaker endpoint.
-    5. Read model prediction.
-    6. Send SNS alert when failure is predicted.
-    7. Return prediction to the client.
+    The handler parses and validates the request, invokes the SageMaker
+    endpoint, conditionally sends an SNS failure alert, and returns the
+    prediction as an HTTP-compatible response.
+
+    Parameters
+    ----------
+    event : dict
+        Lambda event containing the API request body.
+
+    context :
+        AWS Lambda runtime context object. It is accepted by the handler
+        but is not directly used by the current implementation.
+
+    Returns
+    -------
+    dict
+        HTTP-compatible response containing a status code and JSON body.
+
+        Successful predictions contain the predicted failure category,
+        confidence score, and whether an SNS alert was sent.
+
+    Side Effects
+    ------------
+    Invokes the configured SageMaker endpoint for valid requests.
+    Publishes to Amazon SNS when the predicted class is not
+    "No failure".
     """
 
     try:
