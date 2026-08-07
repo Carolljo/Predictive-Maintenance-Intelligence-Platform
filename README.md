@@ -1,10 +1,32 @@
 # Predictive Maintenance Intelligence Platform
 
-An end-to-end machine learning and cloud application for predicting industrial machine failure types from operational and sensor data.
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-orange)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-green)
+![Streamlit](https://img.shields.io/badge/Streamlit-Frontend-red)
+![AWS](https://img.shields.io/badge/AWS-SageMaker-yellow)
 
-I started this project as a notebook-based machine learning workflow and gradually converted it into a reusable prediction system. The final version includes a Random Forest classification model, reusable preprocessing and inference modules, a local FastAPI interface, an interactive Streamlit frontend, and an AWS deployment using SageMaker, Lambda, API Gateway, SNS, S3, CloudWatch, and IAM.
+An end-to-end predictive maintenance platform that predicts industrial machine failures from operational and sensor data using Machine Learning, FastAPI, Streamlit, and AWS SageMaker.
 
-The main goal was not simply to train a model with high accuracy, but to understand and implement the complete workflow from messy industrial data to a user-facing cloud prediction application.
+This project began as a notebook-based machine learning workflow and evolved into a production-style prediction system. It includes a Random Forest classification model, reusable preprocessing and inference modules, a local FastAPI service, an interactive Streamlit frontend, and an AWS deployment using SageMaker, Lambda, API Gateway, SNS, S3, CloudWatch, and IAM.
+
+Rather than focusing only on model accuracy, the project emphasizes the complete engineering workflow—from messy industrial data and feature engineering to cloud deployment and a user-facing application.
+
+---
+
+## Key Features
+
+- End-to-end machine learning pipeline
+- Real-world industrial predictive maintenance use case
+- Random Forest classification model
+- Feature engineering and preprocessing pipeline
+- FastAPI REST API
+- Interactive Streamlit frontend
+- AWS SageMaker deployment
+- AWS Lambda orchestration
+- API Gateway integration
+- SNS email alerts
+- Model explainability using Feature Importance and SHAP
 
 ---
 
@@ -82,6 +104,23 @@ IAM controls permissions between AWS services.
 The model itself was trained locally. SageMaker is used for managed real-time inference rather than model training.
 
 ---
+
+## Screenshots
+
+### Streamlit Dashboard – Failure Detection
+![Failure Detection](docs/images/streamlit-failure.png)
+
+### Streamlit Dashboard – Normal Operation
+![Normal Operation](docs/images/streamlit-normal.png)
+
+### FastAPI Interactive Documentation
+![FastAPI](docs/images/fastapi-swagger.png)
+
+### AWS Lambda Deployment
+![Lambda](docs/images/lambda-function.png)
+
+### SNS Email Alert
+![SNS](docs/images/sns-email-alert.png)
 
 ## Dataset
 

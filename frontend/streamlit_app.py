@@ -2,11 +2,9 @@
 Streamlit frontend for the Predictive Maintenance Intelligence Platform.
 
 The application collects machine operating data from the user and sends
-the readings to the deployed AWS API Gateway endpoint. The API invokes
-the backend prediction pipeline and returns the predicted failure type,
-prediction confidence, and SNS alert status.
+the readings to the local FastAPI prediction service. The backend
+returns the predicted failure type and prediction confidence.
 """
-
 import requests
 import streamlit as st
 
@@ -15,9 +13,7 @@ import streamlit as st
 # Application configuration
 # -------------------------------------------------
 
-API_URL = (
-    "https://xzlyssw5y8.execute-api.ap-south-1.amazonaws.com/predict"
-)
+API_URL = "http://127.0.0.1:8000/predict"
 
 st.set_page_config(
     page_title="Predictive Maintenance Intelligence",
@@ -146,21 +142,21 @@ analyze_button = st.button(
 
 if analyze_button:
 
-    # Build the JSON payload expected by the Lambda backend.
+    # Build the JSON payload expected by the local FastAPI backend.
     machine_data = {
-        "Date": str(date),
-        "System": int(system),
-        "Control": control,
-        "Type": machine_type,
-        "Air temperature (K)": float(air_temperature),
-        "Process temperature (K)": float(process_temperature),
-        "Rotational speed (rpm)": float(rotational_speed),
-        "Torque (Nm)": float(torque),
-        "Tool wear (min)": float(tool_wear),
-    }
+    "Date": str(date),
+    "System": int(system),
+    "Control": control,
+    "Type": machine_type,
+    "Air_temperature": float(air_temperature),
+    "Process_temperature": float(process_temperature),
+    "Rotational_speed": float(rotational_speed),
+    "Torque": float(torque),
+    "Tool_wear": float(tool_wear),
+}
 
     try:
-        # Send machine readings through API Gateway for prediction.
+        # Send machine readings to the local FastAPI prediction service.
         with st.spinner("Analyzing machine condition..."):
             response = request_prediction(machine_data)
 
@@ -169,7 +165,7 @@ if analyze_button:
 
             failure_type = result["predicted_failure"]
             confidence = result["confidence"]
-            alert_sent = result["alert_sent"]
+            alert_sent = False
 
             # Display prediction returned by the AWS backend.
             st.markdown("### Prediction Result")
@@ -194,9 +190,9 @@ if analyze_button:
             )
 
             col3.metric(
-                "Alert Sent",
-                "Yes" if alert_sent else "No"
-            )
+            "Deployment",
+            "Local"
+                )
 
         else:
             st.error(
