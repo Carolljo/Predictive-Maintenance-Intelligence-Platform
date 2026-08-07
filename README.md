@@ -59,7 +59,7 @@ The prediction, confidence score, and alert status are returned through API Gate
 
 ## System Architecture
 
-![Predictive Maintenance AWS Architecture](docs/architecture.png)
+![Predictive Maintenance AWS Architecture](docs/images/architecture.png)
 
 The final application request flow is:
 
@@ -838,7 +838,13 @@ Predictive-Maintenance-Intelligence-Platform/
 │       └── inference.py
 │
 ├── docs/
-│   └── architecture.png
+│   └── images/
+│       ├── architecture.png
+│       ├── fastapi-swagger.png
+│       ├── lambda-function.png
+│       ├── sns-email-alert.png
+│       ├── streamlit-failure.png
+│       └── streamlit-normal.png
 │
 ├── frontend/
 │   └── streamlit_app.py
@@ -874,7 +880,6 @@ Predictive-Maintenance-Intelligence-Platform/
 ├── requirements.txt
 └── requirements-sagemaker.txt
 ```
-
 ---
 
 # Setup
